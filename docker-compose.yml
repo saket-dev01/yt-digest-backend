@@ -1,0 +1,24 @@
+services:
+  whisper-fastapi:
+    build:
+      context: ./whisper-api
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000" 
+    networks:
+      - app-network
+
+  yt2audio:
+    build:
+      context: ./yt2audio
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3001"
+    networks:
+      - app-network
+    depends_on:
+      - whisper-fastapi
+
+networks:
+  app-network:
+    driver: bridge
