@@ -14,9 +14,17 @@ export async function runConversion(url: string, id: string) {
         await exec(url, {
             extractAudio: true,
             audioFormat: 'mp3',
-            output
+            output,
+            noPlaylist: true,
+            matchFilter: 'duration < 3600',  // Limit duration to 1 hour (3600 seconds)
         });
         console.log(`Audio extracted successfully: ${output}`);
+
+        // Update status to PROCESSING
+        await prisma.video.update({
+            where: { id },
+            data: { processStatus: Status.PROCESSING }
+        });
 
         // Send the file to the /convert endpoint
         const form = new FormData();
@@ -33,19 +41,18 @@ export async function runConversion(url: string, id: string) {
         fs.unlinkSync(output); // Delete the file after sending
         console.log(`Deleted temporary file: ${output}`);
 
-        // We have the id, we just need the text, and the notes
+        // Generate notes from the transcribed text
         const notes = await generateNotes(response.data.text);
         console.log(`Generated notes for video ID: ${id}`);
 
+        // Update the video in the database
         const updateVideo = await prisma.video.update({
             data: {
                 text: response.data.text,
                 processStatus: Status.COMPLETED,
                 summary: notes
             },
-            where: {
-                id
-            }
+            where: { id }
         });
 
         console.log(`Updated database for video ID: ${id}`);
@@ -59,14 +66,33 @@ export async function runConversion(url: string, id: string) {
             console.log(`Deleted temporary file due to error: ${output}`);
         }
 
-        if (axios.isAxiosError(error)) {
-            throw new Error(`Failed to send the file to the conversion endpoint: ${error.message}`);
-        } else if (error instanceof Error && error.message.includes('youtube-dl-exec')) {
-            throw new Error(`Failed to extract audio: ${error.message}`);
-        } else if (error instanceof Error && error.message.includes('generateNotes')) {
-            throw new Error(`Failed to generate notes: ${error.message}`);
-        } else {
-            throw new Error('Failed to process the request');
+        let errorStatus: Status = Status.FAILED;
+        let errorMessage = 'Failed to process the request';
+
+        if (error instanceof Error) {
+            if (error.message.includes('video matches filter "duration < 3600"')) {
+                errorStatus = Status.LENGTHISSUE;
+                errorMessage = 'Video exceeds maximum allowed length of 1 hour';
+            } else if (error.message.includes('youtube-dl-exec')) {
+                errorMessage = `Failed to extract audio: ${error.message}`;
+            } else if (error.message.includes('generateNotes')) {
+                errorMessage = `Failed to generate notes: ${error.message}`;
+            } else if (axios.isAxiosError(error)) {
+                errorMessage = `Failed to send the file to the conversion endpoint: ${error.message}`;
+            } else {
+                errorMessage = error.message;
+            }
         }
+
+        // Update the video status to FAILED or LENGTHISSUE
+        await prisma.video.update({
+            data: {
+                processStatus: errorStatus,
+                summary: errorMessage  // Using summary field to store error message
+            },
+            where: { id }
+        });
+
+        throw new Error(errorMessage);
     }
 }

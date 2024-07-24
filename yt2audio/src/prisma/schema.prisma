@@ -13,7 +13,6 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-
 model Video {
   id             String   @id @default(cuid())
   videoLink      String   @unique
@@ -32,4 +31,5 @@ enum Status {
   PROCESSING
   COMPLETED
   FAILED
+  LENGTHISSUE
 }
