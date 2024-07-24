@@ -66,7 +66,7 @@ export async function runConversion(url: string, id: string) {
             console.log(`Deleted temporary file due to error: ${output}`);
         }
 
-        let errorStatus: Status = Status.FAILED;
+        let errorStatus: Status = Status.LENGTHISSUE;
         let errorMessage = 'Failed to process the request';
 
         if (error instanceof Error) {
@@ -78,6 +78,7 @@ export async function runConversion(url: string, id: string) {
             } else if (error.message.includes('generateNotes')) {
                 errorMessage = `Failed to generate notes: ${error.message}`;
             } else if (axios.isAxiosError(error)) {
+                errorStatus = Status.LENGTHISSUE;
                 errorMessage = `Failed to send the file to the conversion endpoint: ${error.message}`;
             } else {
                 errorMessage = error.message;
