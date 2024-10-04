@@ -21,7 +21,7 @@ export async function generateNotes(transcript: string) {
     });
 
     console.log('Received response from OpenAI API.');
-
+    
     const studyNotes = response.choices[0]?.message?.content;
 
     if (!studyNotes) {

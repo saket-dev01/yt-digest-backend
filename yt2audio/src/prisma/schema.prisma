@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -13,17 +7,39 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum Role {
+  USER
+  ADMIN
+  MODERATOR
+}
+
+model User {
+  id        String    @id @default(cuid())
+  email     String    @unique
+  name      String?
+  imageUrl  String?
+  role      Role      @default(USER)
+  videos    Video[]   // One-to-many relationship with Video
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+  auth_type AuthType
+}
+
 model Video {
-  id             String   @id @default(cuid())
-  videoLink      String   @unique
-  title          String
-  imgUrl         String
-  processStatus  Status   @default(PENDING)
-  text           String?  @db.Text
-  summary        String?  @db.Text
-  quiz           Json?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id            String    @id @default(cuid())
+  videoLink     String    @unique
+  title         String
+  imgUrl        String
+  processStatus Status    @default(PENDING)
+  text          String?   @db.Text
+  summary       String?   @db.Text
+  quiz          Json?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
+  userId        String   
+  user          User      @relation(fields: [userId], references: [id])
 }
 
 enum Status {
@@ -32,4 +48,8 @@ enum Status {
   COMPLETED
   FAILED
   LENGTHISSUE
+}
+
+enum AuthType {
+  Google
 }
